@@ -4,7 +4,7 @@
 
 | 카테고리 | 설명 |
 | ----------- | ----------- |
-| 개발 언어 | C++ |
+| 개발 언어 | C, C++ |
 | IDE | Visual Studio 2022, GitHub Desktop |
 | 프레임워크 | MFC |
 | 버전 관리 | GitHub |

@@ -13,6 +13,7 @@
 
 CGLIMDlg::CGLIMDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_GLIM_DIALOG, pParent)
+	, m_nRadius(0)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -20,6 +21,7 @@ CGLIMDlg::CGLIMDlg(CWnd* pParent /*=nullptr*/)
 void CGLIMDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
+	DDX_Text(pDX, IDC_RADIUS_EDIT, m_nRadius);
 }
 
 BEGIN_MESSAGE_MAP(CGLIMDlg, CDialogEx)
@@ -27,6 +29,7 @@ BEGIN_MESSAGE_MAP(CGLIMDlg, CDialogEx)
 	ON_WM_QUERYDRAGICON()
 	ON_BN_CLICKED(IDOK, &CGLIMDlg::OnBnClickedOk)
 	ON_BN_CLICKED(IDCANCEL, &CGLIMDlg::OnBnClickedCancel)
+	ON_BN_CLICKED(IDC_SET_RADIUS_BTN, &CGLIMDlg::OnBnClickedSetRadiusBtn)
 END_MESSAGE_MAP()
 
 // CGLIMDlg 메시지 처리기
@@ -83,3 +86,13 @@ HCURSOR CGLIMDlg::OnQueryDragIcon()
 
 void CGLIMDlg::OnBnClickedOk() { /* CDialogEx::OnOK(); */ }
 void CGLIMDlg::OnBnClickedCancel() { CDialogEx::OnCancel(); }
+
+void CGLIMDlg::OnBnClickedSetRadiusBtn()
+{
+	// 사용자 입력 값을 변수에 대입한다.
+	UpdateData(TRUE);
+	// 유효하지 않은 값을 입력한 경우 예외처리될 수 있도록 값을 초기화한다.
+	if (m_nRadius < 0) m_nRadius = 0;
+	// 실제 사용될 int 값을 확인할 수 있도록 재출력한다.
+	UpdateData(FALSE);
+}
