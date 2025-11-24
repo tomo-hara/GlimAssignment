@@ -7,8 +7,8 @@
 #define IDC_SET_RADIUS_BTN              1001
 #define IDC_RADIUS_EDIT                 1002
 #define IDC_SET_THICK_BTN               1003
-#define IDC_RADIUS_EDIT2                1004
 #define IDC_THICK_EDIT                  1004
+#define IDC_CLEANUP_BTN                 1005
 
 // Next default values for new objects
 // 

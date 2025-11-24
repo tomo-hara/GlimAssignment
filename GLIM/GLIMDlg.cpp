@@ -37,6 +37,7 @@ BEGIN_MESSAGE_MAP(CGLIMDlg, CDialogEx)
 	ON_WM_MOUSEMOVE()
 	ON_WM_LBUTTONUP()
 	ON_BN_CLICKED(IDC_SET_THICK_BTN, &CGLIMDlg::OnBnClickedSetThickBtn)
+	ON_BN_CLICKED(IDC_CLEANUP_BTN, &CGLIMDlg::OnBnClickedCleanupBtn)
 END_MESSAGE_MAP()
 
 // CGLIMDlg 메시지 처리기
@@ -81,6 +82,8 @@ BOOL CGLIMDlg::OnInitDialog()
 	GetDlgItem(IDC_RADIUS_EDIT)->MoveWindow(IMAGE_WIDTH + MARGIN - 176, 0, 28, 28);
 	GetDlgItem(IDC_SET_THICK_BTN)->MoveWindow(IMAGE_WIDTH + MARGIN - 136, 36, 116, 28);
 	GetDlgItem(IDC_THICK_EDIT)->MoveWindow(IMAGE_WIDTH + MARGIN - 176, 36, 28, 28);
+	GetDlgItem(IDC_CLEANUP_BTN)->MoveWindow(IMAGE_WIDTH + MARGIN - 136, 72, 116, 28);
+
 	// 대화상자 영역 갱신을 위해 정보를 멤버변수에 저장한다.
 	m_rect.SetRect(0, 0, IMAGE_WIDTH, IMAGE_HEIGHT);
 
@@ -136,6 +139,8 @@ void CGLIMDlg::OnBnClickedSetRadiusBtn()
 	if (m_nRadius < 0) m_nRadius = 0;
 	// 실제 사용될 int 값을 확인할 수 있도록 재출력한다.
 	UpdateData(FALSE);
+
+	reDraw();
 }
 
 void CGLIMDlg::OnDestroy()
@@ -223,10 +228,7 @@ void CGLIMDlg::OnMouseMove(UINT nFlags, CPoint point)
 		m_posList[m_clickIndex] += point - m_prevPos;
 		m_prevPos = point;
 
-		Clear();
-		drawPoints();
-		drawGarden();
-		InvalidateRect(m_rect);
+		reDraw();
 		UpdateWindow();
 	} else CDialogEx::OnMouseMove(nFlags, point);
 }
@@ -246,6 +248,8 @@ void CGLIMDlg::OnBnClickedSetThickBtn()
 	if (m_nThick < 0) m_nThick = 0;
 	// 실제 사용될 int 값을 확인할 수 있도록 재출력한다.
 	UpdateData(FALSE);
+
+	reDraw();
 }
 
 // 매개 변수 x 값에서 두 점 (x1, y1), (x2, y2) 를 지나는 수직이등분선 위 y 값을 반환한다. 
@@ -320,4 +324,27 @@ void CGLIMDlg::drawPoints()
 			}
 		}
 	}
+}
+
+void CGLIMDlg::cleanUp()
+{
+	m_nClickCount = 0;
+	m_nThick = 0;
+	m_nRadius = 0;
+	Clear();
+	InvalidateRect(m_rect);
+	UpdateData(FALSE);
+}
+
+void CGLIMDlg::OnBnClickedCleanupBtn()
+{
+	cleanUp();
+}
+
+void CGLIMDlg::reDraw()
+{
+	Clear();
+	drawPoints();
+	drawGarden();
+	InvalidateRect(m_rect);
 }

@@ -47,6 +47,10 @@ public:
 	void Clear();
 	// 클릭 지점을 이미지 영역에 그린다.
 	void drawPoints();
+	// 모든 정보를 삭제하고 처음 상태로 돌아갑니다.
+	void cleanUp();
+	// 모든 그림을 다시 그립니다.
+	void reDraw();
 
 // 대화 상자 데이터입니다.
 #ifdef AFX_DESIGN_TIME
@@ -77,4 +81,5 @@ public:
 	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
 	afx_msg void OnBnClickedSetThickBtn();
 	int m_nThick;
+	afx_msg void OnBnClickedCleanupBtn();
 };
