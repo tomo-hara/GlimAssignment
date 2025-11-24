@@ -8,6 +8,7 @@
 #define MARGIN			200
 #define DUMMY_X_SIZE	(IMAGE_WIDTH * 2)
 #define DUMMY_Y_SIZE	(IMAGE_HEIGHT * 2)
+#define NONCLICK_STATE	-1
 
 // CGLIMDlg 대화 상자
 class CGLIMDlg : public CDialogEx
@@ -15,8 +16,12 @@ class CGLIMDlg : public CDialogEx
 private:
 	CImage m_image;
 	int m_nClickCount = 0;
-	POINT m_posList[MAX_CLICK_COUNT];
+	CPoint m_posList[MAX_CLICK_COUNT];
 	CRect m_rect; 
+	char m_clickIndex = NONCLICK_STATE;
+	CPoint m_prevPos;
+	unsigned char *mp_fm = NULL;
+	int m_nPitch = 0;
 
 // 생성입니다.
 public:
@@ -27,7 +32,7 @@ public:
 	// (x, y) 가 중심점 (n_CenterX, nCenterY) 반지름 nRadius 로 그려진 원 위의 좌표인지 확인한다.
 	bool isInCircle(int x, int y, int nCenterX, int nCenterY, int nRadius);
 	// 세 클릭 지점을 지나가는 정원을 그린다.
-	void DrawGarden();
+	void drawGarden();
 	// (x, y) 가 정원 가장자리에 해당하는 좌표인지 확인한다.
 	bool isThickPos(int x, int y, int centerX, int centerY, double dRadius);
 	// 중심점을 통해 원의 반지름을 구한다.
@@ -38,6 +43,10 @@ public:
 	bool isValidPos(int y);
 	// point 좌표가 드러난 이미지 영역에 해당하는지 판단한다.
 	bool isValidViewPos(CPoint point);
+	// 보여지는 이미지 영역을 하얀색으로 초기화한다.
+	void Clear();
+	// 클릭 지점을 이미지 영역에 그린다.
+	void drawPoints();
 
 // 대화 상자 데이터입니다.
 #ifdef AFX_DESIGN_TIME

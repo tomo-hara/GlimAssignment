@@ -41,6 +41,11 @@ END_MESSAGE_MAP()
 
 // CGLIMDlg 메시지 처리기
 
+void CGLIMDlg::Clear()
+{
+	memset(mp_fm, 0xff, sizeof(unsigned char) * (DUMMY_X_SIZE * 2 + IMAGE_WIDTH) * (DUMMY_Y_SIZE * 2 + IMAGE_HEIGHT));
+}
+
 BOOL CGLIMDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
@@ -63,8 +68,9 @@ BOOL CGLIMDlg::OnInitDialog()
 		m_image.SetColorTable(0, 256, rgb);
 	}
 
-	unsigned char *fm = (unsigned char *)m_image.GetBits();
-	memset(fm, 0xff, sizeof(unsigned char) * nWidth * nHeight);
+	mp_fm = (unsigned char *)m_image.GetBits();
+	m_nPitch = m_image.GetPitch();
+	Clear();
 
 	// 이미지 영역 확인에 문제가 없도록 윈도우 크기를 조절한다.
 	MoveWindow(0, 0, IMAGE_WIDTH + MARGIN, IMAGE_HEIGHT + MARGIN);
@@ -76,7 +82,7 @@ BOOL CGLIMDlg::OnInitDialog()
 	GetDlgItem(IDC_SET_THICK_BTN)->MoveWindow(IMAGE_WIDTH + MARGIN - 136, 36, 116, 28);
 	GetDlgItem(IDC_THICK_EDIT)->MoveWindow(IMAGE_WIDTH + MARGIN - 176, 36, 28, 28);
 	// 대화상자 영역 갱신을 위해 정보를 멤버변수에 저장한다.
-	GetClientRect(m_rect);
+	m_rect.SetRect(0, 0, IMAGE_WIDTH, IMAGE_HEIGHT);
 
 	return TRUE;  // 포커스를 컨트롤에 설정하지 않으면 TRUE를 반환합니다.
 }
@@ -182,37 +188,29 @@ void CGLIMDlg::OnLButtonDown(UINT nFlags, CPoint point)
 		AfxMessageBox(_T("먼저 유효한 입력값을 설정하세요."));
 	} else {
 		// 보이지 않는 대화상자 영역을 건너뛴다.
-		point.x += DUMMY_X_SIZE;
-		point.y += DUMMY_Y_SIZE;
+		point.Offset(DUMMY_X_SIZE, DUMMY_Y_SIZE);
 		// 세 번째 클릭까지는 클릭 지점 그리기를 수행한다.
 		if (isValidViewPos(point) && m_nClickCount < 3) {
-			int nSttx = point.x - m_nRadius;
-			int nStty = point.y - m_nRadius;
-			int nEndx = point.x + m_nRadius;
-			int nEndy = point.y + m_nRadius;
-
-			unsigned char *fm = (unsigned char *)m_image.GetBits();
-			int nPitch = m_image.GetPitch();
-
-			for (int y = nStty; y < nEndy; y++) {
-				for (int x = nSttx; x < nEndx; x++) {
-					if (isInCircle(x, y, point.x, point.y, m_nRadius)) {
-						fm[y * nPitch + x] = COLOR_BLACK;
-					}
-				}
-			}
-
-			// 클릭시 그려지는 원이 즉시 보이도록 대화상자 영역을 무효화 처리한다.
-			InvalidateRect(m_rect);
-
 			// 클릭시 좌표를 기억할 수 있도록 멤버변수에 저장한다.
 			m_posList[m_nClickCount].x = point.x;
 			m_posList[m_nClickCount].y = point.y;
 			m_nClickCount++;
+			// 기억한 좌표를 바탕으로 원의 중심 UI를 표시한다.
+			drawPoints();
 		} else {
-			DrawGarden();
+			for (int i = 0; i < MAX_CLICK_COUNT; i++) {
+				if (isInCircle(m_posList[i].x, m_posList[i].y, point.x, point.y, m_nRadius)) {
+					// 클릭 지점을 구분할 수 있도록 색인을 초기화한다.
+					m_clickIndex = i;
+					// 클릭 지점을 이동할 수 있도록 클릭한 지점 좌표정보를 저장해둔다.
+					m_prevPos = point;
+					break;
+				}
+			}
 		}
-
+		drawGarden();
+		// 클릭시 그려지는 것들이 즉시 보이도록 대화상자 영역을 무효화 처리한다.
+		InvalidateRect(m_rect);
 	}
 
 	CDialogEx::OnLButtonDown(nFlags, point);
@@ -220,16 +218,24 @@ void CGLIMDlg::OnLButtonDown(UINT nFlags, CPoint point)
 
 void CGLIMDlg::OnMouseMove(UINT nFlags, CPoint point)
 {
-	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
+	point.Offset(DUMMY_X_SIZE, DUMMY_Y_SIZE);
+	if (m_clickIndex != NONCLICK_STATE) {
+		m_posList[m_clickIndex] += point - m_prevPos;
+		m_prevPos = point;
 
-	CDialogEx::OnMouseMove(nFlags, point);
+		Clear();
+		drawPoints();
+		drawGarden();
+		InvalidateRect(m_rect);
+		UpdateWindow();
+	} else CDialogEx::OnMouseMove(nFlags, point);
 }
 
 void CGLIMDlg::OnLButtonUp(UINT nFlags, CPoint point)
 {
-	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
-
-	CDialogEx::OnLButtonUp(nFlags, point);
+	if (m_clickIndex != NONCLICK_STATE) {
+		m_clickIndex = NONCLICK_STATE;
+	} else CDialogEx::OnLButtonUp(nFlags, point);
 }
 
 void CGLIMDlg::OnBnClickedSetThickBtn()
@@ -252,20 +258,17 @@ static double getYposOnPerpendicularBisector(double x1, double y1, double x2, do
 
 POINT CGLIMDlg::findToIntersectionPoint()
 {
-	int x = 0, y;
+	CPoint pos(0, 0);
 	// 전체 이미지 영역을 x 좌표 기준으로 완전탐색한다.
-	while (x < m_image.GetWidth()) {
+	while (pos.x < m_image.GetWidth()) {
 		// 첫 번째, 두 번째 클릭 지점을 기준으로 그려지는 수직이등분선의 y 좌표를 구한다.
-		y = (int)getYposOnPerpendicularBisector(m_posList[0].x, m_posList[0].y, m_posList[1].x, m_posList[1].y, x);
+		pos.y = (int)getYposOnPerpendicularBisector(m_posList[0].x, m_posList[0].y, m_posList[1].x, m_posList[1].y, pos.x);
 		// 두 번째, 세 번째 클릭 지점을 기준으로 그려지는 수직이등분선의 y 좌표를 구하고, 둘의 차이가 유효범위를 만족하면 탐색을 종료한다.
-		if (isValidPos(y) && 1.0 > fabs(y - getYposOnPerpendicularBisector(m_posList[1].x, m_posList[1].y, m_posList[2].x, m_posList[2].y, x))) {
+		if (isValidPos(pos.y) && 1.0 > fabs(pos.y - getYposOnPerpendicularBisector(m_posList[1].x, m_posList[1].y, m_posList[2].x, m_posList[2].y, pos.x))) {
 			break;
 		}
-		x++;
+		pos.x++;
 	}
-	POINT pos;
-	pos.x = x;
-	pos.y = y;
 	return pos;
 }
 
@@ -285,21 +288,36 @@ bool CGLIMDlg::isThickPos(int x, int y, int centerX, int centerY, double dRadius
 	return bRet;
 }
 
-void CGLIMDlg::DrawGarden()
+void CGLIMDlg::drawGarden()
 {
-	unsigned char *fm = (unsigned char *)m_image.GetBits();
-	int nPitch = m_image.GetPitch();
-
-	POINT centerPos = findToIntersectionPoint();
-	double dRadius = getRadius(centerPos);
-	// 그리기 영역에 해당하는 부분만 정원인지 판단한다.
-	for (int j = DUMMY_Y_SIZE; j < DUMMY_Y_SIZE + IMAGE_HEIGHT; j++) {
-		for (int i = DUMMY_X_SIZE; i < DUMMY_X_SIZE + IMAGE_WIDTH; i++) {
-			if (isThickPos(i, j, centerPos.x, centerPos.y, dRadius)) {
-				fm[j * nPitch + i] = COLOR_BLACK;
+	if (m_nClickCount == 3) {
+		POINT centerPos = findToIntersectionPoint();
+		double dRadius = getRadius(centerPos);
+		// 그리기 영역에 해당하는 부분만 정원인지 판단한다.
+		for (int j = DUMMY_Y_SIZE; j < DUMMY_Y_SIZE + IMAGE_HEIGHT; j++) {
+			for (int i = DUMMY_X_SIZE; i < DUMMY_X_SIZE + IMAGE_WIDTH; i++) {
+				if (isThickPos(i, j, centerPos.x, centerPos.y, dRadius)) {
+					mp_fm[j * m_nPitch + i] = COLOR_BLACK;
+				}
 			}
 		}
 	}
-	// 정원이 즉시 보이도록 대화상자 영역을 무효화 처리한다.
-	InvalidateRect(m_rect);
+}
+
+void CGLIMDlg::drawPoints()
+{
+	for (int i = 0; i < m_nClickCount; i++) {
+		int nSttx = m_posList[i].x - m_nRadius;
+		int nStty = m_posList[i].y - m_nRadius;
+		int nEndx = m_posList[i].x + m_nRadius;
+		int nEndy = m_posList[i].y + m_nRadius;
+
+		for (int y = nStty; y < nEndy; y++) {
+			for (int x = nSttx; x < nEndx; x++) {
+				if (isInCircle(x, y, m_posList[i].x, m_posList[i].y, m_nRadius)) {
+					mp_fm[y * m_nPitch + x] = COLOR_BLACK;
+				}
+			}
+		}
+	}
 }
