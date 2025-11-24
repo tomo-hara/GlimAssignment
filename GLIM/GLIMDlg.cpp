@@ -38,6 +38,7 @@ BEGIN_MESSAGE_MAP(CGLIMDlg, CDialogEx)
 	ON_WM_LBUTTONUP()
 	ON_BN_CLICKED(IDC_SET_THICK_BTN, &CGLIMDlg::OnBnClickedSetThickBtn)
 	ON_BN_CLICKED(IDC_CLEANUP_BTN, &CGLIMDlg::OnBnClickedCleanupBtn)
+	ON_BN_CLICKED(IDC_RAND_BTN, &CGLIMDlg::OnBnClickedRandBtn)
 END_MESSAGE_MAP()
 
 // CGLIMDlg 메시지 처리기
@@ -82,7 +83,9 @@ BOOL CGLIMDlg::OnInitDialog()
 	GetDlgItem(IDC_RADIUS_EDIT)->MoveWindow(IMAGE_WIDTH + MARGIN - 176, 0, 28, 28);
 	GetDlgItem(IDC_SET_THICK_BTN)->MoveWindow(IMAGE_WIDTH + MARGIN - 136, 36, 116, 28);
 	GetDlgItem(IDC_THICK_EDIT)->MoveWindow(IMAGE_WIDTH + MARGIN - 176, 36, 28, 28);
-	GetDlgItem(IDC_CLEANUP_BTN)->MoveWindow(IMAGE_WIDTH + MARGIN - 136, 72, 116, 28);
+	GetDlgItem(IDC_CLEANUP_BTN)->MoveWindow(IMAGE_WIDTH + MARGIN - 136, 36 * 2, 116, 28);
+
+	GetDlgItem(IDC_RAND_BTN)->MoveWindow(IMAGE_WIDTH + MARGIN - 136, 36 * 4, 116, 28);
 
 	// 대화상자 영역 갱신을 위해 정보를 멤버변수에 저장한다.
 	m_rect.SetRect(0, 0, IMAGE_WIDTH, IMAGE_HEIGHT);
@@ -347,4 +350,44 @@ void CGLIMDlg::reDraw()
 	drawPoints();
 	drawGarden();
 	InvalidateRect(m_rect);
+}
+
+bool CGLIMDlg::isOnCircle(int nCenterX, int nCenterY)
+{
+	bool bRet = true;
+	int nDistSquare;
+	int nDx = m_posList[MAX_CLICK_COUNT - 1].x - nCenterX;
+	int nDy = m_posList[MAX_CLICK_COUNT - 1].y - nCenterY;
+	// 마지막 클릭 지점을 기준으로 반지름의 제곱값을 계산한다.
+	int nRadiusSquare = nDx * nDx + nDy * nDy;
+	// 나머지 클릭 지점이 유효 범위를 벗어나면 false 값을 설정한다.
+	for (int i = 0; i < MAX_CLICK_COUNT - 1; i++) {
+		nDx = m_posList[i].x - nCenterX;
+		nDy = m_posList[i].y - nCenterY;
+		nDistSquare = nDx * nDx + nDy * nDy;
+
+		if (1000 < abs(nDistSquare - nRadiusSquare)) {
+			bRet = false;
+			break;
+		}
+	}
+
+	return bRet;
+}
+
+void CGLIMDlg::OnBnClickedRandBtn()
+{
+	// 클릭 지점 두 개를 랜덤한 위치에 생성한다.
+	for (int i = 0; i < MAX_CLICK_COUNT - 1; i++) {
+		m_posList[i].x = DUMMY_X_SIZE + (rand() % IMAGE_WIDTH);
+		m_posList[i].y = DUMMY_Y_SIZE + (rand() % IMAGE_HEIGHT);
+	}
+	// 마지막 클릭 지점이 원 둘레에 위치할 수 있도록 유효한 랜덤값을 설정한다.
+	POINT centerPos;
+	do {
+		m_posList[MAX_CLICK_COUNT - 1].x = DUMMY_X_SIZE + (rand() % IMAGE_WIDTH);
+		m_posList[MAX_CLICK_COUNT - 1].y = DUMMY_Y_SIZE + (rand() % IMAGE_HEIGHT);
+		centerPos = findToIntersectionPoint();
+	} while (!isOnCircle(centerPos.x, centerPos.y));
+	reDraw();
 }

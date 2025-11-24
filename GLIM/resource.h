@@ -9,6 +9,8 @@
 #define IDC_SET_THICK_BTN               1003
 #define IDC_THICK_EDIT                  1004
 #define IDC_CLEANUP_BTN                 1005
+#define IDC_CLEANUP_BTN2                1006
+#define IDC_RAND_BTN                    1006
 
 // Next default values for new objects
 // 

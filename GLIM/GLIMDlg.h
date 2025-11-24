@@ -51,6 +51,8 @@ public:
 	void cleanUp();
 	// 모든 그림을 다시 그립니다.
 	void reDraw();
+	// 마지막 클릭 지점과 중심점 (nCenterX, nCenterY)으로 나머지 클릭 지점들이 원 둘레 위의 좌표인지 확인한다.
+	bool isOnCircle(int nCenterX, int nCenterY);
 
 // 대화 상자 데이터입니다.
 #ifdef AFX_DESIGN_TIME
@@ -82,4 +84,5 @@ public:
 	afx_msg void OnBnClickedSetThickBtn();
 	int m_nThick;
 	afx_msg void OnBnClickedCleanupBtn();
+	afx_msg void OnBnClickedRandBtn();
 };
