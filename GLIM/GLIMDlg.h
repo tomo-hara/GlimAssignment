@@ -9,19 +9,32 @@
 #define DUMMY_X_SIZE	(IMAGE_WIDTH * 2)
 #define DUMMY_Y_SIZE	(IMAGE_HEIGHT * 2)
 #define NONCLICK_STATE	-1
+#define MAX_ITER_COUNT  10
+#define MAX_BLOCK_COUNT 4
+#define ID_REFRESH_MSG	(WM_USER + 1)
+
+#include <thread>
+#include <chrono>
+
+using namespace std;
 
 // CGLIMDlg 대화 상자
 class CGLIMDlg : public CDialogEx
 {
 private:
-	CImage m_image;
-	int m_nClickCount = 0;
-	CPoint m_posList[MAX_CLICK_COUNT];
-	CRect m_rect; 
-	char m_clickIndex = NONCLICK_STATE;
-	CPoint m_prevPos;
-	unsigned char *mp_fm = NULL;
-	int m_nPitch = 0;
+	CImage m_image;						// 대화상자에 출력할 이미지 객체
+	int m_nClickCount = 0;				// 대화상자 이미지 영역에 클릭한 횟수
+	CPoint m_posList[MAX_CLICK_COUNT];	// 클릭한 지점들의 위치 정보
+	CRect m_rect;						// 대화상자 이미지 영역 정보
+	char m_clickIndex = NONCLICK_STATE;	// 클릭시 지점 정보를 나타낼 색인
+	CPoint m_prevPos;					// 드래그할 때 갱신을 위한 위치 정보
+	unsigned char *mp_fm = NULL;		// 이미지 객체의 비트 패턴 주소
+	int m_nPitch = 0;					// 이미지 객체의 피치
+	POINT m_centerPos;					// 원의 중심 좌표
+	double m_dRadius = 0;				// 원의 반지름
+	thread m_thread[MAX_BLOCK_COUNT];	// 정원 그리기를 수행할 스레드 선언
+	bool m_bAutoRandFlag = false;		// 스레드 작업 안정성을 위한 플래그 (자동 랜덤)
+	bool m_bRandFlag = false;			// 스레드 작업 안정성을 위한 플래그 (랜덤)
 
 // 생성입니다.
 public:
@@ -53,6 +66,40 @@ public:
 	void reDraw();
 	// 마지막 클릭 지점과 중심점 (nCenterX, nCenterY)으로 나머지 클릭 지점들이 원 둘레 위의 좌표인지 확인한다.
 	bool isOnCircle(int nCenterX, int nCenterY);
+	// centerPos 를 중심으로하여 세 클릭 지점을 지나가는 정원을 그린다.
+	void drawGarden(POINT centerPos);
+	// 주어진 rect 영역에 대한 처리를 하는 함수
+	/*void processImage(CRect rect);*/
+	void processImage(CRect rect, POINT centerPos, double dRadius);
+
+	// getter : centerPos
+	POINT getCenterPos()
+	{
+		return m_centerPos;
+	}
+	// setter : centerPos
+	void setCenterPos(POINT *pPos)
+	{
+		memcpy(&m_centerPos, pPos, sizeof(POINT));
+		return ;
+	}
+	// getter : dRadius
+	double getRadius()
+	{
+		return m_dRadius;
+	}
+	// setter : dRadius
+	void setRadius(double dRadius)
+	{
+		m_dRadius = dRadius;
+	}
+	// getter : m_posList
+	CPoint *getPosList()
+	{
+		return m_posList;
+	}
+
+	void refresh();
 
 // 대화 상자 데이터입니다.
 #ifdef AFX_DESIGN_TIME
@@ -85,4 +132,6 @@ public:
 	int m_nThick;
 	afx_msg void OnBnClickedCleanupBtn();
 	afx_msg void OnBnClickedRandBtn();
+	afx_msg void OnBnClickedAutoRandBtn();
+	virtual LRESULT WindowProc(UINT message, WPARAM wParam, LPARAM lParam);
 };

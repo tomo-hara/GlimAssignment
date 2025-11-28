@@ -7,6 +7,7 @@
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
+	#pragma comment(linker, "/entry:WinMainCRTStartup /subsystem:console")
 #endif
 
 // CGLIMDlg 대화 상자
@@ -17,6 +18,8 @@ CGLIMDlg::CGLIMDlg(CWnd* pParent /*=nullptr*/)
 	, m_nThick(0)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+
+	memset(&m_centerPos, 0, sizeof(POINT));
 }
 
 void CGLIMDlg::DoDataExchange(CDataExchange* pDX)
@@ -39,6 +42,7 @@ BEGIN_MESSAGE_MAP(CGLIMDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_SET_THICK_BTN, &CGLIMDlg::OnBnClickedSetThickBtn)
 	ON_BN_CLICKED(IDC_CLEANUP_BTN, &CGLIMDlg::OnBnClickedCleanupBtn)
 	ON_BN_CLICKED(IDC_RAND_BTN, &CGLIMDlg::OnBnClickedRandBtn)
+	ON_BN_CLICKED(IDC_AUTO_RAND_BTN, &CGLIMDlg::OnBnClickedAutoRandBtn)
 END_MESSAGE_MAP()
 
 // CGLIMDlg 메시지 처리기
@@ -86,6 +90,7 @@ BOOL CGLIMDlg::OnInitDialog()
 	GetDlgItem(IDC_CLEANUP_BTN)->MoveWindow(IMAGE_WIDTH + MARGIN - 136, 36 * 2, 116, 28);
 
 	GetDlgItem(IDC_RAND_BTN)->MoveWindow(IMAGE_WIDTH + MARGIN - 136, 36 * 4, 116, 28);
+	GetDlgItem(IDC_AUTO_RAND_BTN)->MoveWindow(IMAGE_WIDTH + MARGIN - 136, 36 * 5, 116, 28);
 
 	// 대화상자 영역 갱신을 위해 정보를 멤버변수에 저장한다.
 	m_rect.SetRect(0, 0, IMAGE_WIDTH, IMAGE_HEIGHT);
@@ -162,7 +167,7 @@ bool CGLIMDlg::isValidViewPos(CPoint point)
 	return rect.PtInRect(point);
 }
 
-bool CGLIMDlg::isValidPos(int y)
+__inline bool CGLIMDlg::isValidPos(int y)
 {
 	return 0 <= y && y < m_image.GetHeight();
 }
@@ -256,7 +261,7 @@ void CGLIMDlg::OnBnClickedSetThickBtn()
 }
 
 // 매개 변수 x 값에서 두 점 (x1, y1), (x2, y2) 를 지나는 수직이등분선 위 y 값을 반환한다. 
-static double getYposOnPerpendicularBisector(double x1, double y1, double x2, double y2, double x)
+__inline static double getYposOnPerpendicularBisector(double x1, double y1, double x2, double y2, double x)
 {
 	double dYpos;
 	dYpos = -((x2 - x1) / (y2 - y1)) * (x - ((x1 + x2) / 2.0)) + ((y1 + y2) / 2.0);
@@ -285,7 +290,7 @@ double CGLIMDlg::getRadius(POINT centerPos)
 		+ (centerPos.y - m_posList[0].y) * (centerPos.y - m_posList[0].y));
 }
 
-bool CGLIMDlg::isThickPos(int x, int y, int centerX, int centerY, double dRadius)
+__inline bool CGLIMDlg::isThickPos(int x, int y, int centerX, int centerY, double dRadius)
 {
 	bool bRet = false;
 	double dDist = sqrt((centerX - x) * (centerX - x) + (centerY - y) * (centerY - y));
@@ -375,19 +380,113 @@ bool CGLIMDlg::isOnCircle(int nCenterX, int nCenterY)
 	return bRet;
 }
 
+void threadFunc(CGLIMDlg *pData, int nIterCount)
+{
+	// 시드 설정은 스레드 단위로 이뤄짐으로 여기서 처리한다.
+	srand((unsigned int)time(NULL));
+	for (int i = 1; i <= nIterCount; i++) {
+		CPoint *pPos = pData->getPosList(), centerPos;
+		// 클릭 지점 두 개를 랜덤한 위치에 생성한다.
+		for (int sub_i = 1; sub_i < MAX_CLICK_COUNT; sub_i++) {
+			pPos[sub_i].x = DUMMY_X_SIZE + (rand() % IMAGE_WIDTH);
+			pPos[sub_i].y = DUMMY_Y_SIZE + (rand() % IMAGE_HEIGHT);
+		}
+		// 나머지 클릭 지점이 원 둘레에 위치할 수 있도록 유효한 랜덤값을 설정한다.
+		do {
+			pPos[0].x = DUMMY_X_SIZE + (rand() % IMAGE_WIDTH);
+			pPos[0].y = DUMMY_Y_SIZE + (rand() % IMAGE_HEIGHT);
+			centerPos = pData->findToIntersectionPoint();
+		} while (!pData->isOnCircle(centerPos.x, centerPos.y));
+
+		pData->Clear();
+		pData->drawPoints();
+		// 정원 그리기 작업에 4개의 스레드가 사용된다.
+		// 각 스레드에 중복될 작업은 미리 처리해둔다.
+		pData->setRadius(pData->getRadius(centerPos));
+		pData->setCenterPos(&centerPos);
+		// 연산자 오버로딩을 통해 스레드를 활용하는 함수를 호출한다.
+		pData->drawGarden(centerPos);
+		// 메인 스레드가 이미지 객체 정보를 출력할 수 있도록 메시지를 전송한다.
+		pData->PostMessageW(WM_COMMAND, MAKEWPARAM(ID_REFRESH_MSG, i), (LPARAM)0);
+		// 0.5초 간격으로 작업하기 위한 지연함수
+		this_thread::sleep_for(chrono::milliseconds(480));
+		//this_thread::sleep_for(chrono::milliseconds(980));
+	}
+}
+
 void CGLIMDlg::OnBnClickedRandBtn()
 {
-	// 클릭 지점 두 개를 랜덤한 위치에 생성한다.
-	for (int i = 0; i < MAX_CLICK_COUNT - 1; i++) {
-		m_posList[i].x = DUMMY_X_SIZE + (rand() % IMAGE_WIDTH);
-		m_posList[i].y = DUMMY_Y_SIZE + (rand() % IMAGE_HEIGHT);
+	if (!m_bRandFlag && !m_bAutoRandFlag) {
+		m_bRandFlag = true;
+		// 이 함수에서는 1회만 작업할 수 있도록 한다.
+		thread _thread(threadFunc, this, 1);
+		// 메인 스레드는 UI를 그릴 수 있도록 처리한다.
+		_thread.detach();
 	}
-	// 마지막 클릭 지점이 원 둘레에 위치할 수 있도록 유효한 랜덤값을 설정한다.
-	POINT centerPos;
-	do {
-		m_posList[MAX_CLICK_COUNT - 1].x = DUMMY_X_SIZE + (rand() % IMAGE_WIDTH);
-		m_posList[MAX_CLICK_COUNT - 1].y = DUMMY_Y_SIZE + (rand() % IMAGE_HEIGHT);
-		centerPos = findToIntersectionPoint();
-	} while (!isOnCircle(centerPos.x, centerPos.y));
-	reDraw();
+}
+
+void CGLIMDlg::OnBnClickedAutoRandBtn()
+{
+	if (!m_bRandFlag && !m_bAutoRandFlag) {
+		m_bAutoRandFlag = true;
+
+		thread _thread(threadFunc, this, MAX_ITER_COUNT);
+		_thread.detach();
+	}
+}
+
+void threadProcess(CWnd *pParent, CRect rect)
+{
+	CGLIMDlg *pWnd = (CGLIMDlg *)pParent;
+	pWnd->processImage(rect, pWnd->getCenterPos(), pWnd->getRadius());
+}
+
+void CGLIMDlg::drawGarden(POINT centerPos)
+{
+	// 그려지는 영역을 4개로 나누어 초기화한다.
+	CRect rect(DUMMY_X_SIZE, DUMMY_Y_SIZE, DUMMY_X_SIZE + IMAGE_WIDTH, DUMMY_Y_SIZE + IMAGE_HEIGHT);
+	CRect rt[MAX_BLOCK_COUNT];
+	for (int k = 0; k < MAX_BLOCK_COUNT; k++) {
+		rt[k] = rect;
+		rt[k].OffsetRect(IMAGE_WIDTH * (k % 2), IMAGE_HEIGHT * int(k / 2));
+		// 각 영역을 하나의 스레드가 작업할 수 있도록 생성한다.
+		m_thread[k] = thread(threadProcess, this, rt[k]);
+	}
+	// 모든 영역이 그려진 이후에 출력되어야함으로 대기한다.
+	m_thread[0].join();
+	m_thread[1].join();
+	m_thread[2].join();
+	m_thread[3].join();
+}
+
+#include "CProcess.h"
+
+void CGLIMDlg::processImage(CRect rect, POINT centerPos, double dRadius)
+{
+	CProcess process;
+
+	process.getStartInfo(&m_image, rect, centerPos, dRadius, m_nThick, COLOR_BLACK);
+}
+
+void CGLIMDlg::refresh()
+{
+	InvalidateRect(m_rect);
+	UpdateWindow();
+}
+
+LRESULT CGLIMDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
+{
+	if (message == WM_COMMAND) {
+		if (LOWORD(wParam) == ID_REFRESH_MSG) {
+			if (HIWORD(wParam) == 1) {
+				m_bRandFlag = false;
+			}
+			if (HIWORD(wParam) == MAX_ITER_COUNT) {
+				m_bAutoRandFlag = false;
+			}
+			refresh();
+		}
+	} 
+	
+	return CDialogEx::WindowProc(message, wParam, lParam);
 }
