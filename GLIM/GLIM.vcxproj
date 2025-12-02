@@ -183,16 +183,15 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="CProcess.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GLIM.h" />
     <ClInclude Include="GLIMDlg.h" />
+    <ClInclude Include="MB_Thread.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="CProcess.cpp" />
     <ClCompile Include="GLIM.cpp" />
     <ClCompile Include="GLIMDlg.cpp" />
     <ClCompile Include="pch.cpp">

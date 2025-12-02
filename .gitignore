@@ -416,3 +416,10 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Ignore all library files with the .lib extension
+*.lib
+
+# Ignore files generated from extracting zip archives
+[Mm][Bb]_*.h
+util.bat
