@@ -36,6 +36,9 @@
     <ClInclude Include="MB_Thread.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="MB_ListBox.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GLIM.cpp">

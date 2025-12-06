@@ -15,6 +15,7 @@
 #include <iostream>
 #include <chrono>
 #include "MB_Thread.h"
+#include "MB_ListBox.h"
 
 using namespace std;
 
@@ -32,7 +33,8 @@ private:
 	int m_nPitch = 0;					// 이미지 객체의 피치
 	POINT m_centerPos;					// 원의 중심 좌표
 	double m_dRadius = 0;				// 원의 반지름
-	MB_Thread m_wtd;					// 스레드 작업을 하기위한 MB_Thread 객체
+	MB_Thread m_thread;					// 스레드 작업을 하기위한 MB_Thread 객체
+	MB_ListBox m_event_list;			// 스레드 작업 상황 전달을 위한 MB_ListBox 객체
 
 	// 생성입니다.
 public:
@@ -62,39 +64,17 @@ public:
 	void reDraw();
 	// 마지막 클릭 지점과 중심점 (nCenterX, nCenterY)으로 나머지 클릭 지점들이 원 둘레 위의 좌표인지 확인한다.
 	bool isOnCircle(int nCenterX, int nCenterY);
-
-	// getter : centerPos
-	POINT getCenterPos()
-	{
-		return m_centerPos;
-	}
-	// getter : dRadius
-	double getRadius()
-	{
-		return m_dRadius;
-	}
-	// getter : m_posList
-	CPoint *getPosList()
-	{
-		return m_posList;
-	}
-	// getter : mp_fm
-	unsigned char *getFieldImage()
-	{
-		return mp_fm;
-	}
-	// getter : m_nPitch
-	int getPitch()
-	{
-		return m_nPitch;
-	}
-	// getter : m_nThick
-	int getThick()
-	{
-		return m_nThick;
-	}
-
+	// 이미지 영역을 갱신합니다.
 	void refresh();
+
+	// getter / setter
+	POINT getCenterPos() { return m_centerPos; }
+	double getRadius() { return m_dRadius; }
+	CPoint *getPosList() { return m_posList; }
+	unsigned char *getFieldImage() { return mp_fm; }
+	int getPitch() { return m_nPitch; }
+	int getThick() { return m_nThick; }
+	MB_ListBox *getList() { return &m_event_list; }
 
 	// 대화 상자 데이터입니다.
 #ifdef AFX_DESIGN_TIME

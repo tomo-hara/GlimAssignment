@@ -91,12 +91,18 @@ BOOL CGLIMDlg::OnInitDialog()
 	GetDlgItem(IDC_SET_THICK_BTN)->MoveWindow(IMAGE_WIDTH + MARGIN - 136, 36, 116, 28);
 	GetDlgItem(IDC_THICK_EDIT)->MoveWindow(IMAGE_WIDTH + MARGIN - 176, 36, 28, 28);
 	GetDlgItem(IDC_CLEANUP_BTN)->MoveWindow(IMAGE_WIDTH + MARGIN - 136, 36 * 2, 116, 28);
-
 	GetDlgItem(IDC_RAND_BTN)->MoveWindow(IMAGE_WIDTH + MARGIN - 136, 36 * 4, 116, 28);
 	GetDlgItem(IDC_AUTO_RAND_BTN)->MoveWindow(IMAGE_WIDTH + MARGIN - 136, 36 * 5, 116, 28);
 
+
 	// 대화상자 영역 갱신을 위해 정보를 멤버변수에 저장한다.
 	m_rect.SetRect(0, 0, IMAGE_WIDTH, IMAGE_HEIGHT);
+
+	// IDC_EVENT_LIST컨트롤을 MB_ListBox 객체로 서브클래싱한다.
+	m_event_list.SubclassDlgItem(IDC_EVENT_LIST, this);
+	GetDlgItem(IDC_EVENT_LIST)->MoveWindow(0, IMAGE_HEIGHT + 16, IMAGE_WIDTH, 136);
+	m_event_list.AddEventString(L"프로그램이 시작되었습니다.");
+	m_thread.setEventList(&m_event_list);
 
 	return TRUE;  // 포커스를 컨트롤에 설정하지 않으면 TRUE를 반환합니다.
 }
@@ -162,7 +168,7 @@ void CGLIMDlg::OnDestroy()
 		m_image.Destroy();
 	}
 
-	m_wtd.DestroyThread();
+	m_thread.DestroyThread();
 }
 
 bool CGLIMDlg::isValidViewPos(CPoint point)
@@ -353,6 +359,7 @@ void CGLIMDlg::cleanUp()
 	Clear();
 	InvalidateRect(m_rect);
 	UpdateData(FALSE);
+	m_event_list.CleanUp();
 }
 
 void CGLIMDlg::OnBnClickedCleanupBtn()
@@ -448,16 +455,12 @@ DWORD WINAPI threadFn(void *pData)
 
 void CGLIMDlg::OnBnClickedRandBtn()
 {
-	if (!m_wtd.isExistWorkThread()) {
-		m_wtd.CreateThread(threadFn, m_hWnd, this, 1);
-	}
+	m_thread.CreateThread(threadFn, m_hWnd, this, 1);
 }
 
 void CGLIMDlg::OnBnClickedAutoRandBtn()
 {
-	if (!m_wtd.isExistWorkThread()) {
-		m_wtd.CreateThread(threadFn, m_hWnd, this, MAX_ITER_COUNT);
-	}
+	m_thread.CreateThread(threadFn, m_hWnd, this, MAX_ITER_COUNT);
 }
 
 void CGLIMDlg::refresh()
@@ -470,6 +473,10 @@ LRESULT CGLIMDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
 {
 	if (message == WM_REFRESH) {
 		refresh();
+	}
+	else if (message == WM_EXIT_MB_THREAD) {
+		/* 스레드 정상 종료 */
+		//m_event_list.AddEventString(L"스레드 작업이 정상 종료되었습니다.");
 	}
 
 	return CDialogEx::WindowProc(message, wParam, lParam);

@@ -421,5 +421,5 @@ FodyWeavers.xsd
 *.lib
 
 # Ignore files generated from extracting zip archives
-[Mm][Bb]_*.h
 util.bat
+Mb_MFC
