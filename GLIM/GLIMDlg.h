@@ -19,6 +19,8 @@
 
 using namespace std;
 
+//CCriticalSection g_cs;
+
 // CGLIMDlg 대화 상자
 class CGLIMDlg : public CDialogEx
 {

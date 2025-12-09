@@ -411,6 +411,8 @@ DWORD WINAPI threadFn(void *pData)
 
 		auto start = chrono::system_clock::now();
 		CPoint *pPos = pDlg->getPosList(), centerPos;
+		// 입출력 단위연산의 원자성을 보존하기 위해 임계영역을 설정한다.
+		//g_cs.Lock();
 		// 클릭 지점 두 개를 랜덤한 위치에 생성한다.
 		for (int sub_i = 1; sub_i < MAX_CLICK_COUNT; sub_i++) {
 			pPos[sub_i].x = DUMMY_X_SIZE + (rand() % IMAGE_WIDTH);
@@ -438,7 +440,8 @@ DWORD WINAPI threadFn(void *pData)
 				}
 			}
 		}
-
+		// 입출력 단위연산이 종료되었음으로 임계영역을 해제한다.
+		//g_cs.Unlock();
 		// 메인 스레드가 이미지 객체 정보를 출력할 수 있도록 메시지를 전송한다.
 		pDlg->PostMessageW(WM_REFRESH, (WPARAM)i, (LPARAM)0);
 		auto end = chrono::system_clock::now();
