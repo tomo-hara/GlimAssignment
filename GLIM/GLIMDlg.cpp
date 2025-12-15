@@ -242,6 +242,22 @@ void CGLIMDlg::OnLButtonDown(UINT nFlags, CPoint point)
 	CDialogEx::OnLButtonDown(nFlags, point);
 }
 
+void CGLIMDlg::drawPoint(int nClickIndex)
+{
+	int nSttx = m_posList[nClickIndex].x - m_nRadius;
+	int nStty = m_posList[nClickIndex].y - m_nRadius;
+	int nEndx = m_posList[nClickIndex].x + m_nRadius;
+	int nEndy = m_posList[nClickIndex].y + m_nRadius;
+
+	for (int y = nStty; y < nEndy; y++) {
+		for (int x = nSttx; x < nEndx; x++) {
+			if (isInCircle(x, y, m_posList[nClickIndex].x, m_posList[nClickIndex].y, m_nRadius)) {
+				mp_fm[y * m_nPitch + x] = COLOR_GRAY;
+			}
+		}
+	}
+}
+
 void CGLIMDlg::OnMouseMove(UINT nFlags, CPoint point)
 {
 	point.Offset(DUMMY_X_SIZE, DUMMY_Y_SIZE);
@@ -250,8 +266,30 @@ void CGLIMDlg::OnMouseMove(UINT nFlags, CPoint point)
 		m_prevPos = point;
 
 		reDraw();
+	}
+	if (m_nClickCount == MAX_CLICK_COUNT) {
+		// 커서가 몇 번째 클릭 지점에 위치 하는지 확인
+		int nClickIndex = NONCLICK_STATE;
+		for (int i = 0; i < MAX_CLICK_COUNT; i++) {
+			if (isInCircle(point.x, point.y, m_posList[i].x, m_posList[i].y, m_nRadius)) {
+				nClickIndex = i;
+				break;
+			}
+		}
+		// 해당 클릭 지점 원의 색상 변경 + 커서 아이콘 변경
+		if (NONCLICK_STATE == nClickIndex)  { // 클릭 지점에 위치한 경우
+			drawPoints();
+			// 커서 아이콘을 기본 화살표로 변경
+			::SetCursor(AfxGetApp()->LoadStandardCursor(IDC_ARROW));
+		} else  {
+			drawPoint(nClickIndex);
+			// 커서 아이콘을 손가락 모양으로 변경
+			::SetCursor(AfxGetApp()->LoadStandardCursor(IDC_HAND));
+		}
+		InvalidateRect(m_rect);
 		UpdateWindow();
 	}
+	
 	else CDialogEx::OnMouseMove(nFlags, point);
 }
 
@@ -319,13 +357,13 @@ __inline static bool isThickPos(int x, int y, int centerX, int centerY, double d
 void CGLIMDlg::drawGarden()
 {
 	if (m_nClickCount == 3) {
-		POINT centerPos = findToIntersectionPoint();
-		double dRadius = getRadius(centerPos);
+		m_centerPos = findToIntersectionPoint();
+		double dRadius = getRadius(m_centerPos);
 		int nThick = getThick();
 		// 그리기 영역에 해당하는 부분만 정원인지 판단한다.
 		for (int j = DUMMY_Y_SIZE; j < DUMMY_Y_SIZE + IMAGE_HEIGHT; j++) {
 			for (int i = DUMMY_X_SIZE; i < DUMMY_X_SIZE + IMAGE_WIDTH; i++) {
-				if (isThickPos(i, j, centerPos.x, centerPos.y, dRadius, nThick)) {
+				if (isThickPos(i, j, m_centerPos.x, m_centerPos.y, dRadius, nThick)) {
 					mp_fm[j * m_nPitch + i] = COLOR_BLACK;
 				}
 			}
@@ -398,6 +436,8 @@ bool CGLIMDlg::isOnCircle(int nCenterX, int nCenterY)
 	return bRet;
 }
 
+CCriticalSection g_cs;
+
 DWORD WINAPI threadFn(void *pData)
 {
 	MB_Thread *pThread = (MB_Thread *)pData;
@@ -412,7 +452,7 @@ DWORD WINAPI threadFn(void *pData)
 		auto start = chrono::system_clock::now();
 		CPoint *pPos = pDlg->getPosList(), centerPos;
 		// 입출력 단위연산의 원자성을 보존하기 위해 임계영역을 설정한다.
-		//g_cs.Lock();
+		g_cs.Lock();
 		// 클릭 지점 두 개를 랜덤한 위치에 생성한다.
 		for (int sub_i = 1; sub_i < MAX_CLICK_COUNT; sub_i++) {
 			pPos[sub_i].x = DUMMY_X_SIZE + (rand() % IMAGE_WIDTH);
@@ -441,7 +481,7 @@ DWORD WINAPI threadFn(void *pData)
 			}
 		}
 		// 입출력 단위연산이 종료되었음으로 임계영역을 해제한다.
-		//g_cs.Unlock();
+		g_cs.Unlock();
 		// 메인 스레드가 이미지 객체 정보를 출력할 수 있도록 메시지를 전송한다.
 		pDlg->PostMessageW(WM_REFRESH, (WPARAM)i, (LPARAM)0);
 		auto end = chrono::system_clock::now();

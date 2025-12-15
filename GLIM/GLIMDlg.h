@@ -4,13 +4,14 @@
 #define IMAGE_WIDTH		640
 #define IMAGE_HEIGHT	480
 #define IMAGE_BPP		8
-#define COLOR_BLACK		0x03
+#define COLOR_BLACK		0x03	// 0b 0000 0011
 #define MARGIN			200
 #define DUMMY_X_SIZE	(IMAGE_WIDTH * 2)
 #define DUMMY_Y_SIZE	(IMAGE_HEIGHT * 2)
 #define NONCLICK_STATE	-1
 #define MAX_ITER_COUNT  10
 #define WM_REFRESH	(WM_USER + 1)
+#define COLOR_GRAY		0xAC	// 0b 1010 1100
 
 #include <iostream>
 #include <chrono>
@@ -18,8 +19,6 @@
 #include "MB_ListBox.h"
 
 using namespace std;
-
-//CCriticalSection g_cs;
 
 // CGLIMDlg 대화 상자
 class CGLIMDlg : public CDialogEx
@@ -68,6 +67,8 @@ public:
 	bool isOnCircle(int nCenterX, int nCenterY);
 	// 이미지 영역을 갱신합니다.
 	void refresh();
+	// 클릭 지점과 커서의 위치 관계에 따라 원을 그립니다.
+	void drawPoint(int nClickIndex);
 
 	// getter / setter
 	POINT getCenterPos() { return m_centerPos; }
